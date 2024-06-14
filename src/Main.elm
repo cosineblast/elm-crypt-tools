@@ -6,8 +6,9 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 
-main = Browser.element { init = init, view = view, update = update, subscriptions = subscriptions }
+import HashAlgorithm exposing (..)
 
+main = Browser.element { init = init, view = view, update = update, subscriptions = subscriptions }
 
 -- Ports
 
@@ -15,12 +16,6 @@ port askHash : (String, String) -> Cmd msg
 port onHash : (String -> msg) -> Sub msg
 
 -- Structure
-
-type HashAlgorithm = SHA256 | SHA1
-algorithmName : HashAlgorithm -> String
-algorithmName algo = case algo of
-    SHA256 -> "SHA256"
-    SHA1 -> "SHA1"
 
 type alias Model = {
         algorithm: Maybe HashAlgorithm,
@@ -41,16 +36,13 @@ init _ = {
     computedHash = Nothing
     } |> pure
 
-
-
-
 update : Msg -> Model -> (Model, Cmd Msg)
 update message model =
     case message of
-        SwitchAlgorithm (algo) -> case algo of
-            "SHA256" -> { model | algorithm = Just SHA256 } |> pure
-            "SHA1" -> { model | algorithm = Just SHA1 } |> pure
-            _ -> { model | algorithm = Nothing } |> pure
+        SwitchAlgorithm (name) ->
+            case parseAlgorithm name of
+                Nothing -> { model | algorithm = Nothing, computedHash = Nothing } |> pure
+                Just algo -> ({ model | algorithm = Just algo, computedHash = Nothing }, askHash (name, model.inputText))
 
         InputTyped (str) -> ({ model | inputText = str },
             case model.algorithm of
@@ -76,13 +68,12 @@ view model = div []
 
                 select [name "algo", attribute "aria-label" "Algorithm",
                     onInput SwitchAlgorithm
-                ] [
-                    option [selected True, disabled True, value ""]
-                    [ text "Algorithm"],
-
-                    option [value "SHA256"] [ text "SHA256" ],
-                    option [value "SHA1"] [ text "SHA1" ]
-                ],
+                ] (
+                    [ option [selected True, disabled True, value ""] [ text "Algorithm"] ] ++
+                    List.map (\x -> let name = algorithmName x in
+                        option [ (value name)] [text name]
+                        )
+                    allAlgorithms),
 
                 input [placeholder "Type some input", onInput InputTyped] [  ],
 
