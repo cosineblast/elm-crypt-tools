@@ -1,5 +1,8 @@
 {
   "devDependencies": {
     "elm-live": "^4.0.2"
+  },
+  "scripts": {
+      "dev": "elm-live -- src/Main.elm --output=build/elm-main.js"
   }
 }
