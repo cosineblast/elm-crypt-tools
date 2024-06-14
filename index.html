@@ -13,7 +13,9 @@
 
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="color-scheme" content="light dark" />
+        <script src="https://unpkg.com/jshashes@1.0.8/hashes.min.js"></script>
 
+        <!-- TODO: use bundler -->
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
 
     </head>
@@ -24,6 +26,33 @@
         <script>
              const app = Elm.Main.init({
                  node: document.getElementById('app')
+             });
+
+
+             app.ports.askHash.subscribe(request => {
+                 console.log(`got hash request from elm: (${request})`);
+
+                 const [algorithm, input] = request;
+
+
+                 // TODO: send PR to elm asking them to change var usages to const in their docs
+                 // TODO: do the same for jshashes
+
+                 const getHasher = {
+                     'MD5': () => new Hashes.MD5(),
+                     'SHA1': () => new Hashes.SHA1(),
+                     'SHA256': () => new Hashes.SHA256(),
+                 }[algorithm];
+
+                 const hasher = getHasher();
+
+                 hasher.setUTF8(true).setUpperCase(false);
+
+                 const result = hasher.hex(input);
+
+                 console.log(`result: (${result})`);
+
+                 app.ports.onHash.send(result);
              });
         </script>
 
