@@ -21,32 +21,44 @@ port onHmac : (String -> msg) -> Sub msg
 -- Structure
 
 type alias Model = {
-    hash: HashModel,
-    hmac: HmacModel,
-    pow: PowModel
+    -- hash
+    hashAlgorithm: Maybe HashAlgorithm,
+    hashInput: String,
+    computedHash: Maybe String,
+
+    -- hmac
+    hmacAlgorithm: Maybe HashAlgorithm,
+    hmacMessage: String,
+    hmacKey: String,
+    computedHmac: Maybe String,
+
+    -- pow
+    powBase: Int,
+    powExponent: Int,
+    powModulo: Int
     }
 
-type alias HashModel = {
-        algorithm: Maybe HashAlgorithm,
-        input: String,
+type alias HashModel r = {
+        r |
+        hashAlgorithm: Maybe HashAlgorithm,
+        hashInput: String,
         computedHash: Maybe String
     }
 
-type alias HmacModel = {
-        algorithm: Maybe HashAlgorithm,
-        message: String,
-        key: String,
-        computedHash: Maybe String
+type alias HmacModel r = {
+        r |
+        hmacAlgorithm: Maybe HashAlgorithm,
+        hmacMessage: String,
+        hmacKey: String,
+        computedHmac: Maybe String
     }
 
-type alias PowModel = {
-        base: Int,
-        exponent: Int,
-        modulo: Int
+type alias PowModel r = {
+        r |
+        powBase: Int,
+        powExponent: Int,
+        powModulo: Int
     }
-
-toHash : Model -> (HashModel -> HashModel) -> Model
-toHash model f = { model | hash = f model.hash }
 
 
 type HashMsg =
@@ -71,73 +83,63 @@ type Msg = HashMsg HashMsg | HmacMsg HmacMsg | PowMsg PowMsg
 
 init : () -> ( Model, Cmd Msg )
 init _ = {
-    hash = {
-        algorithm = Nothing,
-        input = "",
-        computedHash = Nothing
-    },
-    hmac = {
-        algorithm = Nothing,
-        message = "",
-        key = "",
-        computedHash = Nothing
-    },
-    pow = {
-        base = 1,
-        exponent = 1,
-        modulo = 1
-    }
+    hashAlgorithm = Nothing,
+    hashInput = "",
+    computedHash = Nothing,
+
+    hmacAlgorithm = Nothing,
+    hmacMessage = "",
+    hmacKey = "",
+    computedHmac = Nothing,
+
+    powBase = 1,
+    powExponent = 1,
+    powModulo = 1
+
     } |> pure
 
 
-updateHashModel : HashMsg -> HashModel -> (HashModel, Cmd Msg)
+updateHashModel : HashMsg -> HashModel r -> (HashModel r, Cmd Msg)
 updateHashModel message model =
     case message of
         SwitchHashAlgorithm (name) ->
             case parseAlgorithm name of
-                Nothing -> { model | algorithm = Nothing, computedHash = Nothing } |> pure
-                Just algo -> ({ model | algorithm = Just algo, computedHash = Nothing }, askHash (name, model.input))
+                Nothing -> { model | hashAlgorithm = Nothing, computedHash = Nothing } |> pure
+                Just algo -> ({ model | hashAlgorithm = Just algo, computedHash = Nothing }, askHash (name, model.hashInput))
 
-        HashInputTyped str -> ({ model | input = str },
-            case model.algorithm of
+        HashInputTyped str -> ({ model | hashInput = str },
+            case model.hashAlgorithm of
                 Nothing -> Cmd.none
                 Just algo -> askHash (algorithmName algo, str))
 
         HashComputed str -> ({ model | computedHash = Just str }) |> pure
 
-updateHmacModel : HmacMsg -> HmacModel -> (HmacModel, Cmd Msg)
+updateHmacModel : HmacMsg -> HmacModel r -> (HmacModel r, Cmd Msg)
 updateHmacModel message model =
     case message of
         SwitchHmacAlgorithm name ->
             case parseAlgorithm name of
-                Nothing -> { model | computedHash = Nothing } |> pure
-                Just algo -> ({ model | algorithm = Just algo, computedHash = Nothing},
-                    askHmac { algorithm = name, message = model.message, key = model.key })
-        HmacInputTyped str -> ({ model | message = str},
-            case model.algorithm of
+                Nothing -> { model | computedHmac = Nothing } |> pure
+                Just algo -> ({ model | hmacAlgorithm = Just algo, computedHmac = Nothing},
+                    askHmac { algorithm = name, message = model.hmacMessage, key = model.hmacKey })
+        HmacInputTyped str -> ({ model | hmacMessage = str},
+            case model.hmacAlgorithm of
                 Nothing -> Cmd.none
-                Just algo -> askHmac {algorithm = algorithmName algo, message = str, key = model.key})
+                Just algo -> askHmac {algorithm = algorithmName algo, message = str, key = model.hmacKey})
 
-        HmacKeyTyped str -> ({ model | key = str},
-            case model.algorithm of
+        HmacKeyTyped str -> ({ model | hmacKey = str},
+            case model.hmacAlgorithm of
                 Nothing -> Cmd.none
-                Just algo -> askHmac {algorithm = algorithmName algo, message = model.message, key = str})
+                Just algo -> askHmac {algorithm = algorithmName algo, message = model.hmacMessage, key = str})
 
-        HmacComputed str -> { model | computedHash = Just str } |> pure
+        HmacComputed str -> { model | computedHmac = Just str } |> pure
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        HashMsg m ->
-            updateHashModel m model.hash
-            |> Tuple.mapFirst (\hash -> { model | hash = hash})
-
-        HmacMsg m ->
-            updateHmacModel m model.hmac
-            |> Tuple.mapFirst (\thing -> { model | hmac = thing})
-
-        PowMsg m ->
-            model|> pure
+        HashMsg m -> updateHashModel m model
+        HmacMsg m -> updateHmacModel m model
+        PowMsg m -> model|> pure
 
 subscriptions : Model -> Sub Msg
 subscriptions _ = Sub.batch [onHash (HashComputed >> HashMsg), onHmac (HmacComputed >> HmacMsg)]
@@ -154,7 +156,7 @@ algorithmPickView switch = div [] [
                     option [ (value name)] [text name])
                 allAlgorithms) ]
 
-hashView : HashModel -> Html Msg
+hashView : HashModel r -> Html Msg
 hashView model =
             section [] [
 
@@ -164,7 +166,7 @@ hashView model =
 
                 input [placeholder "Input", onInput (HashInputTyped >> HashMsg)] [  ],
 
-                case model.algorithm of
+                case model.hashAlgorithm of
                     Nothing -> div [] []
                     Just algo -> div []
                         [ algo |> algorithmName |> text,
@@ -175,7 +177,7 @@ hashView model =
                         ]
             ]
 
-hmacView : HmacModel -> Html Msg
+hmacView : HmacModel r -> Html Msg
 hmacView model =
     section [] [
         h4 [] [text "HMAC"],
@@ -184,18 +186,18 @@ hmacView model =
         input [placeholder "Message", onInput (HmacInputTyped >> HmacMsg)] [],
         input [placeholder "Key", onInput (HmacKeyTyped >> HmacMsg)] [],
 
-        case model.algorithm of
+        case model.hmacAlgorithm of
             Nothing -> div [] []
             Just algo -> div []
                 [ algo |> algorithmName |> text,
                   text " Hash: ",
-                  case model.computedHash of
+                  case model.computedHmac of
                       Nothing -> text "...computing"
                       Just str -> code [] [text str]
                 ]
         ]
 
-powView : PowModel -> Html Msg
+powView : PowModel r -> Html Msg
 powView model =
     div [] [
         h4 [] [ text "Modular Exponentiation" ],
@@ -211,9 +213,9 @@ view model = div []
     [ main_ [ class "container" ]
         [
             h1 [] [ text "Cryptool" ],
-            hashView model.hash,
-            hmacView model.hmac,
-            powView model.pow
+            hashView model,
+            hmacView model,
+            powView model
         ]
     ]
 
