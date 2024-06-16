@@ -1,8 +1,14 @@
 {
+  "type": "module",
+
   "devDependencies": {
-    "elm-live": "^4.0.2"
+    "vite": "^5.2.0",
+    "vite-plugin-elm": "^3.0.1"
   },
+
   "scripts": {
-      "dev": "elm-live -- src/Main.elm --output=build/elm-main.js"
+      "dev": "vite",
+      "build": "vite build",
+      "preview": "vite preview"
   }
 }
