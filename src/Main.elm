@@ -48,19 +48,24 @@ type alias PowModel = {
 toHash : Model -> (HashModel -> HashModel) -> Model
 toHash model f = { model | hash = f model.hash }
 
-type Msg =
+
+type HashMsg =
     SwitchHashAlgorithm String |
     HashInputTyped String |
-    HashComputed String |
+    HashComputed String
 
+type HmacMsg =
     SwitchHmacAlgorithm String |
     HmacInputTyped String |
     HmacKeyTyped String |
-    HmacComputed String |
+    HmacComputed String
 
+type PowMsg =
     PowBaseTyped String |
     PowExponentTyped String |
     PowModuloTyped String
+
+type Msg = HashMsg HashMsg | HmacMsg HmacMsg | PowMsg PowMsg
 
 
 
@@ -85,7 +90,7 @@ init _ = {
     } |> pure
 
 
-updateHashModel : Msg -> HashModel -> (HashModel, Cmd Msg)
+updateHashModel : HashMsg -> HashModel -> (HashModel, Cmd Msg)
 updateHashModel message model =
     case message of
         SwitchHashAlgorithm (name) ->
@@ -100,9 +105,7 @@ updateHashModel message model =
 
         HashComputed str -> ({ model | computedHash = Just str }) |> pure
 
-        _ -> model |> pure
-
-updateHmacModel : Msg -> HmacModel -> (HmacModel, Cmd Msg)
+updateHmacModel : HmacMsg -> HmacModel -> (HmacModel, Cmd Msg)
 updateHmacModel message model =
     case message of
         SwitchHmacAlgorithm name ->
@@ -122,28 +125,22 @@ updateHmacModel message model =
 
         HmacComputed str -> { model | computedHash = Just str } |> pure
 
-        _ -> model |> pure
-
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-    if isHashMsg msg then
-        updateHashModel msg model.hash
-        |> Tuple.mapFirst (\hash -> { model | hash = hash})
-        else updateHmacModel msg model.hmac
-        |> Tuple.mapFirst (\thing -> { model | hmac = thing})
-
-isHashMsg : Msg -> Bool
-isHashMsg msg =
     case msg of
-        SwitchHashAlgorithm _ -> True
-        HashInputTyped _ -> True
-        HashComputed _ -> True
-        _ -> False
+        HashMsg m ->
+            updateHashModel m model.hash
+            |> Tuple.mapFirst (\hash -> { model | hash = hash})
 
+        HmacMsg m ->
+            updateHmacModel m model.hmac
+            |> Tuple.mapFirst (\thing -> { model | hmac = thing})
 
+        PowMsg m ->
+            model|> pure
 
 subscriptions : Model -> Sub Msg
-subscriptions _ = Sub.batch [onHash HashComputed, onHmac HmacComputed]
+subscriptions _ = Sub.batch [onHash (HashComputed >> HashMsg), onHmac (HmacComputed >> HmacMsg)]
 
 
 algorithmPickView : (String -> msg) -> Html msg
@@ -163,9 +160,9 @@ hashView model =
 
                 h4 [] [ text "Compute Hash" ],
 
-                algorithmPickView SwitchHashAlgorithm,
+                algorithmPickView (SwitchHashAlgorithm >> HashMsg),
 
-                input [placeholder "Input", onInput HashInputTyped] [  ],
+                input [placeholder "Input", onInput (HashInputTyped >> HashMsg)] [  ],
 
                 case model.algorithm of
                     Nothing -> div [] []
@@ -183,9 +180,9 @@ hmacView model =
     section [] [
         h4 [] [text "HMAC"],
 
-        algorithmPickView SwitchHmacAlgorithm,
-        input [placeholder "Message", onInput HmacInputTyped] [],
-        input [placeholder "Key", onInput HmacKeyTyped] [],
+        algorithmPickView (SwitchHmacAlgorithm >> HmacMsg),
+        input [placeholder "Message", onInput (HmacInputTyped >> HmacMsg)] [],
+        input [placeholder "Key", onInput (HmacKeyTyped >> HmacMsg)] [],
 
         case model.algorithm of
             Nothing -> div [] []
@@ -203,9 +200,9 @@ powView model =
     div [] [
         h4 [] [ text "Modular Exponentiation" ],
 
-        input [ placeholder "Base", onInput PowBaseTyped ] [],
-        input [ placeholder "Exponent", onInput PowExponentTyped ] [],
-        input [ placeholder "Modulo", onInput PowModuloTyped ] []
+        input [ placeholder "Base", onInput (PowBaseTyped >> PowMsg) ] [],
+        input [ placeholder "Exponent", onInput (PowExponentTyped >> PowMsg) ] [],
+        input [ placeholder "Modulo", onInput (PowModuloTyped >> PowMsg) ] []
     ]
 
 
