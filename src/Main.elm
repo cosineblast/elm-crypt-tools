@@ -33,9 +33,10 @@ type alias Model = {
     computedHmac: Maybe String,
 
     -- pow
-    powBase: Int,
-    powExponent: Int,
-    powModulo: Int
+    powBase: Maybe Int,
+    powExponent: Maybe Int,
+    powModulo: Maybe Int,
+    powTouched: Bool
     }
 
 type alias HashModel r = {
@@ -55,9 +56,10 @@ type alias HmacModel r = {
 
 type alias PowModel r = {
         r |
-        powBase: Int,
-        powExponent: Int,
-        powModulo: Int
+        powBase: Maybe Int,
+        powExponent: Maybe Int,
+        powModulo: Maybe Int,
+        powTouched: Bool
     }
 
 
@@ -92,9 +94,10 @@ init _ = {
     hmacKey = "",
     computedHmac = Nothing,
 
-    powBase = 1,
-    powExponent = 1,
-    powModulo = 1
+    powBase = Nothing,
+    powExponent = Nothing,
+    powModulo = Nothing,
+    powTouched = False
 
     } |> pure
 
@@ -134,12 +137,22 @@ updateHmacModel message model =
 
         HmacComputed str -> { model | computedHmac = Just str } |> pure
 
+
+updatePowModel : PowMsg -> PowModel r -> PowModel r
+updatePowModel msg model =
+    let result =
+            case msg of
+                PowBaseTyped str -> { model | powBase = String.toInt str }
+                PowModuloTyped str -> { model | powModulo = String.toInt str }
+                PowExponentTyped str -> { model | powExponent = String.toInt str }
+    in { result | powTouched = True }
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         HashMsg m -> updateHashModel m model
         HmacMsg m -> updateHmacModel m model
-        PowMsg m -> model|> pure
+        PowMsg m -> updatePowModel m model |> pure
 
 subscriptions : Model -> Sub Msg
 subscriptions _ = Sub.batch [onHash (HashComputed >> HashMsg), onHmac (HmacComputed >> HmacMsg)]
@@ -204,7 +217,16 @@ powView model =
 
         input [ placeholder "Base", onInput (PowBaseTyped >> PowMsg) ] [],
         input [ placeholder "Exponent", onInput (PowExponentTyped >> PowMsg) ] [],
-        input [ placeholder "Modulo", onInput (PowModuloTyped >> PowMsg) ] []
+        input [ placeholder "Modulo", onInput (PowModuloTyped >> PowMsg) ] [],
+
+        case (model.powBase, model.powModulo, model.powExponent) of
+            (Just base, Just modulo, Just exponent) ->
+                div [] [ "Result:" ++ String.fromInt (base + exponent + modulo) |> text ]
+
+            _ -> if model.powTouched then
+                div [] [ text "Invalid input... somewhere"  ]
+                else div [] []
+
     ]
 
 
