@@ -22,7 +22,8 @@ port onHmac : (String -> msg) -> Sub msg
 
 type alias Model = {
     hash: HashModel,
-    hmac: HmacModel
+    hmac: HmacModel,
+    pow: PowModel
     }
 
 type alias HashModel = {
@@ -38,6 +39,12 @@ type alias HmacModel = {
         computedHash: Maybe String
     }
 
+type alias PowModel = {
+        base: Int,
+        exponent: Int,
+        modulo: Int
+    }
+
 toHash : Model -> (HashModel -> HashModel) -> Model
 toHash model f = { model | hash = f model.hash }
 
@@ -45,10 +52,16 @@ type Msg =
     SwitchHashAlgorithm String |
     HashInputTyped String |
     HashComputed String |
+
     SwitchHmacAlgorithm String |
     HmacInputTyped String |
     HmacKeyTyped String |
-    HmacComputed String
+    HmacComputed String |
+
+    PowBaseTyped String |
+    PowExponentTyped String |
+    PowModuloTyped String
+
 
 
 init : () -> ( Model, Cmd Msg )
@@ -63,6 +76,11 @@ init _ = {
         message = "",
         key = "",
         computedHash = Nothing
+    },
+    pow = {
+        base = 1,
+        exponent = 1,
+        modulo = 1
     }
     } |> pure
 
@@ -141,13 +159,13 @@ algorithmPickView switch = div [] [
 
 hashView : HashModel -> Html Msg
 hashView model =
-            div [] [
+            section [] [
 
                 h4 [] [ text "Compute Hash" ],
 
                 algorithmPickView SwitchHashAlgorithm,
 
-                input [placeholder "Type some input", onInput HashInputTyped] [  ],
+                input [placeholder "Input", onInput HashInputTyped] [  ],
 
                 case model.algorithm of
                     Nothing -> div [] []
@@ -162,7 +180,7 @@ hashView model =
 
 hmacView : HmacModel -> Html Msg
 hmacView model =
-    div [] [
+    section [] [
         h4 [] [text "HMAC"],
 
         algorithmPickView SwitchHmacAlgorithm,
@@ -180,16 +198,26 @@ hmacView model =
                 ]
         ]
 
+powView : PowModel -> Html Msg
+powView model =
+    div [] [
+        h4 [] [ text "Modular Exponentiation" ],
+
+        input [ placeholder "Base", onInput PowBaseTyped ] [],
+        input [ placeholder "Exponent", onInput PowExponentTyped ] [],
+        input [ placeholder "Modulo", onInput PowModuloTyped ] []
+    ]
+
+
 view : Model -> Html Msg
 view model = div []
     [ main_ [ class "container" ]
-        [   h1 [] [ text "Cryptool" ],
-
-        hashView model.hash,
-
-        hmacView model.hmac
+        [
+            h1 [] [ text "Cryptool" ],
+            hashView model.hash,
+            hmacView model.hmac,
+            powView model.pow
         ]
-
     ]
 
 -- decoders
