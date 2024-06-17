@@ -33,23 +33,7 @@ port onHmac : (String -> msg) -> Sub msg
 -- STRUCTURE
 
 
-type alias Model =
-    { -- hash
-      hashAlgorithm : Maybe HashAlgorithm
-    , hashInput : String
-    , computedHash : Maybe String
-    , hashInputType : HashInputType
-    , -- hmac
-      hmacAlgorithm : Maybe HashAlgorithm
-    , hmacMessage : String
-    , hmacKey : String
-    , computedHmac : Maybe String
-    , -- pow
-      powBase : TriMaybe Integer
-    , powExponent : TriMaybe Integer
-    , powModulo : TriMaybe Integer
-    }
-
+type alias Model = HashModel (HmacModel (PowModel {}))
 
 type alias HashModel r =
     { r
