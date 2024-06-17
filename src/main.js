@@ -39,8 +39,6 @@ function getHasher(name) {
 // TODO: do the same for jshashes
 
 app.ports.askHash.subscribe(request => {
-    console.log(`got hash request from elm: (${JSON.stringify(request)})`);
-
     const [algorithm, input] = request;
 
     const hasher = getHasher(algorithm);
@@ -48,23 +46,17 @@ app.ports.askHash.subscribe(request => {
     if (hasher !== undefined) {
         const result = hasher.hex(input);
 
-        console.log(`result: (${result})`);
-
         app.ports.onHash.send(result);
     }
 });
 
 app.ports.askHmac.subscribe(request => {
-    console.log(`got hmac request from elm: (${JSON.stringify(request)})`);
-
     const {algorithm, message, key} = request;
 
     const hasher = getHasher(algorithm);
 
     if (hasher !== undefined) {
         const result = hasher.hex_hmac(key, message);
-
-        console.log(`result: ${result}`);
 
         app.ports.onHmac.send(result);
     }
