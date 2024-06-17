@@ -8,6 +8,8 @@ import Html.Events exposing (..)
 
 import HashAlgorithm exposing (..)
 
+import TriMaybe exposing (..)
+
 main = Browser.element { init = init, view = view, update = update, subscriptions = subscriptions }
 
 -- Ports
@@ -33,10 +35,9 @@ type alias Model = {
     computedHmac: Maybe String,
 
     -- pow
-    powBase: Maybe Int,
-    powExponent: Maybe Int,
-    powModulo: Maybe Int,
-    powTouched: Bool
+    powBase: TriMaybe Int,
+    powExponent: TriMaybe Int,
+    powModulo: TriMaybe Int
     }
 
 type alias HashModel r = {
@@ -56,10 +57,9 @@ type alias HmacModel r = {
 
 type alias PowModel r = {
         r |
-        powBase: Maybe Int,
-        powExponent: Maybe Int,
-        powModulo: Maybe Int,
-        powTouched: Bool
+        powBase: TriMaybe Int,
+        powExponent: TriMaybe Int,
+        powModulo: TriMaybe Int
     }
 
 
@@ -94,11 +94,9 @@ init _ = {
     hmacKey = "",
     computedHmac = Nothing,
 
-    powBase = Nothing,
-    powExponent = Nothing,
-    powModulo = Nothing,
-    powTouched = False
-
+    powBase = Empty,
+    powExponent = Empty,
+    powModulo = Empty
     } |> pure
 
 
@@ -140,12 +138,15 @@ updateHmacModel message model =
 
 updatePowModel : PowMsg -> PowModel r -> PowModel r
 updatePowModel msg model =
-    let result =
-            case msg of
-                PowBaseTyped str -> { model | powBase = String.toInt str }
-                PowModuloTyped str -> { model | powModulo = String.toInt str }
-                PowExponentTyped str -> { model | powExponent = String.toInt str }
-    in { result | powTouched = True }
+    let convert = (\str ->
+            if String.isEmpty str
+                then Empty
+                else TriMaybe.fromMaybeInvalid (String.toInt str))
+
+    in case msg of
+            PowBaseTyped str -> { model | powBase = convert str }
+            PowModuloTyped str -> { model | powModulo = convert str }
+            PowExponentTyped str -> { model | powExponent = convert str }
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -210,40 +211,27 @@ hmacView model =
                 ]
         ]
 
--- TODO: add maybe-extra from elm-community
-isJust : Maybe a -> Bool
-isJust x = case x of
-    Nothing -> False
-    Just _ -> True
-
-isNothing : Maybe a -> Bool
-isNothing x = not (isJust x)
-
-boolToStr : Bool -> String
-boolToStr x = if x then "true" else "false"
-
-viewNumberInput : String -> Maybe Int -> Bool -> (String -> msg) -> Html msg
-viewNumberInput name value touched message =
+viewNumberInput : String -> TriMaybe Int -> (String -> msg) -> Html msg
+viewNumberInput name value message =
     input ([
         placeholder name,
         onInput message
-        ] ++ if (touched && isNothing value)
+        ] ++ if (TriMaybe.isInvalid value)
             then [attribute "aria-invalid" "true"]
             else []) []
 
 powView : PowModel r -> Html Msg
 powView model =
-    div [] [
+    section [] [
         h4 [] [ text "Modular Exponentiation" ],
 
-        viewNumberInput "Base" model.powBase model.powTouched (PowBaseTyped >> PowMsg),
-        viewNumberInput "Exponent" model.powExponent model.powTouched (PowExponentTyped >> PowMsg),
-        viewNumberInput "Modulo" model.powModulo model.powTouched (PowModuloTyped >> PowMsg),
-
+        viewNumberInput "Base" model.powBase (PowBaseTyped >> PowMsg),
+        viewNumberInput "Exponent" model.powExponent (PowExponentTyped >> PowMsg),
+        viewNumberInput "Modulo" model.powModulo (PowModuloTyped >> PowMsg),
 
         case (model.powBase, model.powModulo, model.powExponent) of
-            (Just base, Just modulo, Just exponent) ->
-                div [] [ "Result:" ++ String.fromInt (base + exponent + modulo) |> text ]
+            (Valid base, Valid modulo, Valid exponent) ->
+                div [] [ "Result: " ++ String.fromInt (base + exponent + modulo) |> text ]
 
             _ -> div [] []
     ]
@@ -254,9 +242,9 @@ view model = div []
     [ main_ [ class "container" ]
         [
             h1 [] [ text "Cryptool" ],
+            powView model,
             hashView model,
-            hmacView model,
-            powView model
+            hmacView model
         ]
     ]
 
