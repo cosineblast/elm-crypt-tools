@@ -185,7 +185,7 @@ hashView model =
 
                 algorithmPickView (SwitchHashAlgorithm >> HashMsg),
 
-                input [placeholder "Input", onInput (HashInputTyped >> HashMsg)] [  ],
+                textarea [placeholder "Input", onInput (HashInputTyped >> HashMsg)] [],
 
                 case model.hashAlgorithm of
                     Nothing -> div [] []
@@ -204,7 +204,7 @@ hmacView model =
         h4 [] [text "HMAC"],
 
         algorithmPickView (SwitchHmacAlgorithm >> HmacMsg),
-        input [placeholder "Message", onInput (HmacInputTyped >> HmacMsg)] [],
+        textarea [placeholder "Message", onInput (HmacInputTyped >> HmacMsg)] [],
         input [placeholder "Key", onInput (HmacKeyTyped >> HmacMsg)] [],
 
         case model.hmacAlgorithm of
