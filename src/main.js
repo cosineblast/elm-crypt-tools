@@ -27,7 +27,7 @@ function getHasher(name) {
         return undefined;
     }
 
-    hasher.setUTF8(true).setUpperCase(false);
+    hasher.setUTF8(false).setUpperCase(false);
 
     cachedHashers.set(name, hasher);
 
@@ -44,6 +44,8 @@ app.ports.askHash.subscribe(request => {
     const hasher = getHasher(algorithm);
 
     if (hasher !== undefined) {
+        console.log('asking hash for', input);
+
         const result = hasher.hex(input);
 
         app.ports.onHash.send(result);
@@ -60,4 +62,48 @@ app.ports.askHmac.subscribe(request => {
 
         app.ports.onHmac.send(result);
     }
+});
+
+app.ports.askHashFileContent.subscribe(chageEvent => {
+    // event is the result of the onchange event of an input element
+
+    const files = chageEvent.target.files;
+
+    if (!files.length) {
+        console.warn('no file detected in input');
+        return;
+    }
+
+    const file = files[0];
+
+    const reader = new FileReader();
+
+    reader.addEventListener('load', (event) => {
+        console.log('onloaded!');
+
+        if (event.target.readyState !== FileReader.DONE) {
+            return;
+        }
+
+        const result = event.target.result;
+
+        app.ports.onHashFileContent.send(result);
+
+        console.log('done')
+        console.log(result);
+
+    });
+
+    reader.addEventListener('error', (event) => {
+        console.log('error reading file');
+        // TODO: send error to ports
+    });
+
+    reader.addEventListener('progress', (event) => {
+        console.log('.');
+    });
+
+    reader.readAsBinaryString(file);
+    console.log('tryna read za file', file);
+
 });

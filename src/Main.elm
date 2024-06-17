@@ -8,6 +8,10 @@ import Html.Events exposing (..)
 import Maths exposing (Integer)
 import TriMaybe exposing (..)
 
+import Json.Decode as Decode
+
+type alias JsonValue = Decode.Value
+
 
 main =
     Browser.element { init = init, view = view, update = update, subscriptions = subscriptions }
@@ -19,14 +23,20 @@ main =
 
 port askHash : ( String, String ) -> Cmd msg
 
-
 port onHash : (String -> msg) -> Sub msg
 
 
 port askHmac : { message : String, key : String, algorithm : String } -> Cmd msg
 
-
 port onHmac : (String -> msg) -> Sub msg
+
+
+port askHashFileContent : (JsonValue) -> Cmd msg
+
+port onHashFileContent : (String -> msg) -> Sub msg
+
+
+
 
 
 
@@ -67,6 +77,8 @@ type HashMsg
     | PickHashInput HashInputType
     | HashInputTyped String
     | HashComputed String
+    | HashFileSelected JsonValue
+    | HashFileContentFound String
 
 
 type HmacMsg
@@ -108,7 +120,6 @@ init _ =
 
 -- UPDATE
 
-
 updateHashModel : HashMsg -> HashModel r -> ( HashModel r, Cmd Msg )
 updateHashModel message model =
     case message of
@@ -122,19 +133,28 @@ updateHashModel message model =
 
         HashInputTyped str ->
             ( { model | hashInput = str }
-            , case model.hashAlgorithm of
-                Nothing ->
-                    Cmd.none
-
-                Just algo ->
-                    askHash ( algorithmName algo, str )
+            , model.hashAlgorithm
+                |> Maybe.map (\algo -> askHash ((algorithmName algo), str))
+                |> Maybe.withDefault Cmd.none
             )
 
         HashComputed str ->
             { model | computedHash = Just str } |> pure
 
         PickHashInput type_ ->
-            { model | hashInputType = type_ } |> pure
+            { model | hashInputType = type_, computedHash = Nothing } |> pure
+
+        HashFileSelected event ->
+            ( { model | hashInputType = FileInput }
+            , askHashFileContent event
+            )
+
+        HashFileContentFound content ->
+            ( { model | hashInput = content }
+            , model.hashAlgorithm
+                |> Maybe.map (\algo -> askHash ((algorithmName algo), content ))
+                |> Maybe.withDefault Cmd.none
+            )
 
 
 updateHmacModel : HmacMsg -> HmacModel r -> ( HmacModel r, Cmd Msg )
@@ -215,7 +235,11 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch [ onHash (HashComputed >> HashMsg), onHmac (HmacComputed >> HmacMsg) ]
+    Sub.batch
+        [ onHash (HashComputed >> HashMsg)
+        , onHashFileContent (HashFileContentFound >> HashMsg)
+        , onHmac (HmacComputed >> HmacMsg)
+        ]
 
 
 
@@ -268,7 +292,13 @@ hashView model =
             TextInput ->
                 textarea [ placeholder "Input", onInput (HashInputTyped >> HashMsg) ] []
             FileInput ->
-                input [type_ "file"] []
+                div []
+                [ input
+                    [ type_ "file"
+                    , on "change" (Decode.map (HashFileSelected >> HashMsg) Decode.value)
+                    ] []
+                , small [] [ text "Note: This implementation loads the entire file into memory" ]
+                ]
         , case model.hashAlgorithm of
             Nothing ->
                 div [] []
