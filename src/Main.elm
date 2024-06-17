@@ -9,6 +9,8 @@ import Html.Events exposing (..)
 import HashAlgorithm exposing (..)
 
 import TriMaybe exposing (..)
+import Maths exposing (Integer)
+
 
 main = Browser.element { init = init, view = view, update = update, subscriptions = subscriptions }
 
@@ -35,9 +37,9 @@ type alias Model = {
     computedHmac: Maybe String,
 
     -- pow
-    powBase: TriMaybe Int,
-    powExponent: TriMaybe Int,
-    powModulo: TriMaybe Int
+    powBase: TriMaybe Integer,
+    powExponent: TriMaybe Integer,
+    powModulo: TriMaybe Integer
     }
 
 type alias HashModel r = {
@@ -57,9 +59,9 @@ type alias HmacModel r = {
 
 type alias PowModel r = {
         r |
-        powBase: TriMaybe Int,
-        powExponent: TriMaybe Int,
-        powModulo: TriMaybe Int
+        powBase: TriMaybe Integer,
+        powExponent: TriMaybe Integer,
+        powModulo: TriMaybe Integer
     }
 
 
@@ -142,7 +144,7 @@ updatePowModel msg model =
     let convert = (\str ->
             if String.isEmpty str
                 then Empty
-                else TriMaybe.fromMaybeInvalid (String.toInt str))
+                else TriMaybe.fromMaybeInvalid (Maths.stringToInteger str))
 
     in case msg of
             PowBaseTyped str -> { model | powBase = convert str }
@@ -156,8 +158,6 @@ update msg model =
         HmacMsg m -> updateHmacModel m model
         PowMsg m -> updatePowModel m model |> pure
 
-computePow : Int -> Int -> Int -> Int
-computePow x y z = (x ^ y) |> remainderBy z
 
 -- SUBSCRIPTIONS
 
@@ -219,7 +219,7 @@ hmacView model =
         ]
 
 
-viewNumberInput : String -> TriMaybe Int -> (String -> msg) -> Html msg
+viewNumberInput : String -> TriMaybe Integer -> (String -> msg) -> Html msg
 viewNumberInput name value message =
     input ([
         placeholder name,
@@ -239,7 +239,8 @@ powView model =
 
         case (model.powBase, model.powModulo, model.powExponent) of
             (Valid base, Valid modulo, Valid exponent) ->
-                div [] [ "Result: " ++ String.fromInt (computePow base exponent modulo) |> text ]
+                div [] [ "Result: " ++
+                    Maths.integerToString (Maths.computePow base exponent modulo) |> text ]
 
             _ -> div [] []
     ]
