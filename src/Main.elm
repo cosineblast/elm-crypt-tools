@@ -48,7 +48,7 @@ type alias Model = HashModel (HmacModel (PowModel {}))
 type alias HashModel r =
     { r
         | hashAlgorithm : Maybe HashAlgorithm
-        , hashInput : String
+        , hashInput : Maybe String
         , computedHash : Maybe String
         , hashInputType : HashInputType
     }
@@ -103,7 +103,7 @@ type Msg
 init : () -> ( Model, Cmd Msg )
 init _ =
     { hashAlgorithm = Nothing
-    , hashInput = ""
+    , hashInput = Nothing
     , hashInputType = TextInput
     , computedHash = Nothing
     , hmacAlgorithm = Nothing
@@ -129,10 +129,14 @@ updateHashModel message model =
                     { model | hashAlgorithm = Nothing, computedHash = Nothing } |> pure
 
                 Just algo ->
-                    ( { model | hashAlgorithm = Just algo, computedHash = Nothing }, askHash ( name, model.hashInput ) )
+                    ( { model | hashAlgorithm = Just algo, computedHash = Nothing }
+                    , model.hashInput
+                        |> Maybe.map (\input -> askHash ( name, input ))
+                        |> Maybe.withDefault Cmd.none
+                    )
 
         HashInputTyped str ->
-            ( { model | hashInput = str }
+            ( { model | hashInput = Just str }
             , model.hashAlgorithm
                 |> Maybe.map (\algo -> askHash ((algorithmName algo), str))
                 |> Maybe.withDefault Cmd.none
@@ -142,7 +146,7 @@ updateHashModel message model =
             { model | computedHash = Just str } |> pure
 
         PickHashInput type_ ->
-            { model | hashInputType = type_, computedHash = Nothing } |> pure
+            { model | hashInputType = type_, computedHash = Nothing, hashInput = Nothing } |> pure
 
         HashFileSelected event ->
             ( { model | hashInputType = FileInput }
@@ -150,7 +154,7 @@ updateHashModel message model =
             )
 
         HashFileContentFound content ->
-            ( { model | hashInput = content }
+            ( { model | hashInput = Just content }
             , model.hashAlgorithm
                 |> Maybe.map (\algo -> askHash ((algorithmName algo), content ))
                 |> Maybe.withDefault Cmd.none
@@ -299,21 +303,15 @@ hashView model =
                     ] []
                 , small [] [ text "Note: This implementation loads the entire file into memory" ]
                 ]
-        , case model.hashAlgorithm of
-            Nothing ->
-                div [] []
-
-            Just algo ->
+        , case ( model.hashAlgorithm, model.hashInput, model.computedHash ) of
+            ( Just algo, Just input, Just hash ) ->
                 div []
                     [ algo |> algorithmName |> text
                     , text " Hash: "
-                    , case model.computedHash of
-                        Nothing ->
-                            text "...computing"
-
-                        Just str ->
-                            code [] [ text str ]
+                    , code [] [ text hash ]
                     ]
+
+            _ -> div [] []
         ]
 
 
