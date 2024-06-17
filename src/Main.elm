@@ -12,7 +12,7 @@ import TriMaybe exposing (..)
 
 main = Browser.element { init = init, view = view, update = update, subscriptions = subscriptions }
 
--- Ports
+-- PORTS
 
 port askHash : (String, String) -> Cmd msg
 port onHash : (String -> msg) -> Sub msg
@@ -20,7 +20,7 @@ port onHash : (String -> msg) -> Sub msg
 port askHmac : { message: String, key: String, algorithm: String } -> Cmd msg
 port onHmac : (String -> msg) -> Sub msg
 
--- Structure
+-- STRUCTURE
 
 type alias Model = {
     -- hash
@@ -82,7 +82,6 @@ type PowMsg =
 type Msg = HashMsg HashMsg | HmacMsg HmacMsg | PowMsg PowMsg
 
 
-
 init : () -> ( Model, Cmd Msg )
 init _ = {
     hashAlgorithm = Nothing,
@@ -99,6 +98,8 @@ init _ = {
     powModulo = Empty
     } |> pure
 
+
+-- UPDATE
 
 updateHashModel : HashMsg -> HashModel r -> (HashModel r, Cmd Msg)
 updateHashModel message model =
@@ -155,9 +156,15 @@ update msg model =
         HmacMsg m -> updateHmacModel m model
         PowMsg m -> updatePowModel m model |> pure
 
+computePow : Int -> Int -> Int -> Int
+computePow x y z = (x ^ y) |> remainderBy z
+
+-- SUBSCRIPTIONS
+
 subscriptions : Model -> Sub Msg
 subscriptions _ = Sub.batch [onHash (HashComputed >> HashMsg), onHmac (HmacComputed >> HmacMsg)]
 
+-- VIEWS
 
 algorithmPickView : (String -> msg) -> Html msg
 algorithmPickView switch = div [] [
@@ -211,6 +218,7 @@ hmacView model =
                 ]
         ]
 
+
 viewNumberInput : String -> TriMaybe Int -> (String -> msg) -> Html msg
 viewNumberInput name value message =
     input ([
@@ -231,7 +239,7 @@ powView model =
 
         case (model.powBase, model.powModulo, model.powExponent) of
             (Valid base, Valid modulo, Valid exponent) ->
-                div [] [ "Result: " ++ String.fromInt (base + exponent + modulo) |> text ]
+                div [] [ "Result: " ++ String.fromInt (computePow base exponent modulo) |> text ]
 
             _ -> div [] []
     ]
