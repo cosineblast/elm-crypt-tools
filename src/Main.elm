@@ -38,6 +38,7 @@ type alias Model =
       hashAlgorithm : Maybe HashAlgorithm
     , hashInput : String
     , computedHash : Maybe String
+    , hashInputType : HashInputType
     , -- hmac
       hmacAlgorithm : Maybe HashAlgorithm
     , hmacMessage : String
@@ -55,8 +56,10 @@ type alias HashModel r =
         | hashAlgorithm : Maybe HashAlgorithm
         , hashInput : String
         , computedHash : Maybe String
+        , hashInputType : HashInputType
     }
 
+type HashInputType = TextInput | FileInput
 
 type alias HmacModel r =
     { r
@@ -77,6 +80,7 @@ type alias PowModel r =
 
 type HashMsg
     = SwitchHashAlgorithm String
+    | PickHashInput HashInputType
     | HashInputTyped String
     | HashComputed String
 
@@ -104,6 +108,7 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     { hashAlgorithm = Nothing
     , hashInput = ""
+    , hashInputType = TextInput
     , computedHash = Nothing
     , hmacAlgorithm = Nothing
     , hmacMessage = ""
@@ -143,6 +148,9 @@ updateHashModel message model =
 
         HashComputed str ->
             { model | computedHash = Just str } |> pure
+
+        PickHashInput type_ ->
+            { model | hashInputType = type_ } |> pure
 
 
 updateHmacModel : HmacMsg -> HmacModel r -> ( HmacModel r, Cmd Msg )
@@ -251,13 +259,32 @@ algorithmPickView switch =
             )
         ]
 
-
 hashView : HashModel r -> Html Msg
 hashView model =
     section []
         [ h4 [] [ text "Compute Hash" ]
         , algorithmPickView (SwitchHashAlgorithm >> HashMsg)
-        , textarea [ placeholder "Input", onInput (HashInputTyped >> HashMsg) ] []
+        , fieldset []
+            [ legend [] [ text "Input type" ]
+            , input
+                [  type_ "radio", id "hash-text-option", name "hash-input"
+                , onClick (TextInput |> PickHashInput |> HashMsg)
+                ] []
+            ,
+            label [for "hash-text-option"] [ text "Text" ],
+
+            input
+                [ type_ "radio", id "hash-file-option", name "hash-input"
+                , onClick (FileInput |> PickHashInput |> HashMsg)
+                ] [],
+
+            label [for "hash-file-option"] [ text "File" ]
+            ]
+        , case model.hashInputType of
+            TextInput ->
+                textarea [ placeholder "Input", onInput (HashInputTyped >> HashMsg) ] []
+            FileInput ->
+                input [type_ "file"] []
         , case model.hashAlgorithm of
             Nothing ->
                 div [] []
