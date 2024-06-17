@@ -210,23 +210,42 @@ hmacView model =
                 ]
         ]
 
+-- TODO: add maybe-extra from elm-community
+isJust : Maybe a -> Bool
+isJust x = case x of
+    Nothing -> False
+    Just _ -> True
+
+isNothing : Maybe a -> Bool
+isNothing x = not (isJust x)
+
+boolToStr : Bool -> String
+boolToStr x = if x then "true" else "false"
+
+viewNumberInput : String -> Maybe Int -> Bool -> (String -> msg) -> Html msg
+viewNumberInput name value touched message =
+    input ([
+        placeholder name,
+        onInput message
+        ] ++ if (touched && isNothing value)
+            then [attribute "aria-invalid" "true"]
+            else []) []
+
 powView : PowModel r -> Html Msg
 powView model =
     div [] [
         h4 [] [ text "Modular Exponentiation" ],
 
-        input [ placeholder "Base", onInput (PowBaseTyped >> PowMsg) ] [],
-        input [ placeholder "Exponent", onInput (PowExponentTyped >> PowMsg) ] [],
-        input [ placeholder "Modulo", onInput (PowModuloTyped >> PowMsg) ] [],
+        viewNumberInput "Base" model.powBase model.powTouched (PowBaseTyped >> PowMsg),
+        viewNumberInput "Exponent" model.powExponent model.powTouched (PowExponentTyped >> PowMsg),
+        viewNumberInput "Modulo" model.powModulo model.powTouched (PowModuloTyped >> PowMsg),
+
 
         case (model.powBase, model.powModulo, model.powExponent) of
             (Just base, Just modulo, Just exponent) ->
                 div [] [ "Result:" ++ String.fromInt (base + exponent + modulo) |> text ]
 
-            _ -> if model.powTouched then
-                div [] [ text "Invalid input... somewhere"  ]
-                else div [] []
-
+            _ -> div [] []
     ]
 
 
