@@ -1,14 +1,15 @@
 {
   "type": "module",
-
   "devDependencies": {
     "vite": "^5.2.0",
     "vite-plugin-elm": "^3.0.1"
   },
-
   "scripts": {
-      "dev": "vite",
-      "build": "vite build",
-      "preview": "vite preview"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "big-integer": "^1.6.52"
   }
 }

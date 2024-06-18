@@ -36,14 +36,15 @@ port askHashFileContent : (JsonValue) -> Cmd msg
 port onHashFileContent : (String -> msg) -> Sub msg
 
 
+port askIsPrime : String -> Cmd msg
 
-
+port onPrimalityResolved : (Bool -> msg) -> Sub msg
 
 
 -- STRUCTURE
 
 
-type alias Model = HashModel (HmacModel (PowModel {}))
+type alias Model = PrimeModel (HashModel (HmacModel (PowModel {})))
 
 type alias HashModel r =
     { r
@@ -71,6 +72,12 @@ type alias PowModel r =
         , powModulo : TriMaybe Integer
     }
 
+type alias PrimeModel r =
+    { r
+        | primeInput : TriMaybe Integer
+        , primeResult : Maybe Bool
+    }
+
 
 type HashMsg
     = SwitchHashAlgorithm String
@@ -94,10 +101,15 @@ type PowMsg
     | PowModuloTyped String
 
 
+type PrimeMsg
+    = PrimeInputTyped String
+    | PrimalityDecided Bool
+
 type Msg
     = HashMsg HashMsg
     | HmacMsg HmacMsg
     | PowMsg PowMsg
+    | PrimeMsg PrimeMsg
 
 
 init : () -> ( Model, Cmd Msg )
@@ -113,6 +125,8 @@ init _ =
     , powBase = Empty
     , powExponent = Empty
     , powModulo = Empty
+    , primeInput = Empty
+    , primeResult = Nothing
     }
         |> pure
 
@@ -197,17 +211,17 @@ updateHmacModel message model =
         HmacComputed str ->
             { model | computedHmac = Just str } |> pure
 
+convertString : String -> TriMaybe Integer
+convertString str =
+    if String.isEmpty str then
+        Empty
+    else
+        TriMaybe.fromMaybeInvalid (Maths.stringToInteger str)
 
 updatePowModel : PowMsg -> PowModel r -> PowModel r
 updatePowModel msg model =
     let
-        convert =
-            \str ->
-                if String.isEmpty str then
-                    Empty
-
-                else
-                    TriMaybe.fromMaybeInvalid (Maths.stringToInteger str)
+        convert = convertString
     in
     case msg of
         PowBaseTyped str ->
@@ -218,6 +232,22 @@ updatePowModel msg model =
 
         PowExponentTyped str ->
             { model | powExponent = convert str }
+
+
+updatePrimeModel : PrimeMsg -> PrimeModel r -> ( PrimeModel r, Cmd Msg )
+updatePrimeModel msg model =
+    case msg of
+        PrimeInputTyped str ->
+            let converted = convertString str
+            in  ( { model | primeInput = converted, primeResult = Nothing }
+                , case converted of
+                    Valid x -> askIsPrime (Maths.integerToString x)
+                    _ -> Cmd.none
+                )
+
+        PrimalityDecided result ->
+            { model | primeResult = Just result } |> pure
+
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -232,6 +262,9 @@ update msg model =
         PowMsg m ->
             updatePowModel m model |> pure
 
+        PrimeMsg m ->
+            updatePrimeModel m model
+
 
 
 -- SUBSCRIPTIONS
@@ -243,9 +276,8 @@ subscriptions _ =
         [ onHash (HashComputed >> HashMsg)
         , onHashFileContent (HashFileContentFound >> HashMsg)
         , onHmac (HmacComputed >> HmacMsg)
+        , onPrimalityResolved (PrimalityDecided >> PrimeMsg)
         ]
-
-
 
 -- VIEWS
 
@@ -375,6 +407,32 @@ powView model =
                 div [] []
         ]
 
+primeView : PrimeModel r -> Html Msg
+primeView model =
+    section []
+        [ h4 [] [ text "Primality Test" ]
+        , small [] [
+            text "Note: This uses ",
+            a [href "https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test"] [ text "Miller Rabin" ],
+            text " so it can't be 100% sure of primality, but it is pretty accurate"
+        ]
+        , input
+            ( [ placeholder "p"
+              , onInput (PrimeInputTyped >> PrimeMsg)
+              ]
+            ++ if isInvalid model.primeInput
+                then [attribute "aria-invalid" "true"]
+                else []
+            ) [ ]
+        , case model.primeResult of
+            Just prime ->
+                if prime
+                    then div [] [ text "Looks prime to me" ]
+                    else div [] [ text "Not prime." ]
+            Nothing -> div [] []
+        ]
+
+
 
 view : Model -> Html Msg
 view model =
@@ -382,6 +440,7 @@ view model =
         [ main_ [ class "container" ]
             [ h1 [] [ text "Cryptool" ]
             , powView model
+            , primeView model
             , hashView model
             , hmacView model
             ]

@@ -1,5 +1,8 @@
 
 import { Elm } from './Main.elm';
+import bigInt from 'big-integer';
+
+// TODO: add jshashes explicit dependency
 
 const app = Elm.Main.init({
     node: document.getElementById('app')
@@ -106,4 +109,17 @@ app.ports.askHashFileContent.subscribe(chageEvent => {
     reader.readAsBinaryString(file);
     console.log('tryna read za file', file);
 
+});
+
+function isPrime(value) {
+    return bigInt(value).isProbablePrime(256)
+}
+
+app.ports.askIsPrime.subscribe(value => {
+    console.log(`elm wants to know if ${value} is prime`);
+
+
+    const result = isPrime(value);
+
+    app.ports.onPrimalityResolved.send(result);
 });
