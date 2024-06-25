@@ -1,17 +1,18 @@
 port module Main exposing (..)
 
 import Browser
+import Cmd.Extra exposing (withCmd, withNoCmd)
 import HashAlgorithm exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Json.Decode as Decode
 import Maths exposing (Integer)
 import TriMaybe exposing (..)
-import Cmd.Extra exposing (withNoCmd, withCmd)
 
-import Json.Decode as Decode
 
-type alias JsonValue = Decode.Value
+type alias JsonValue =
+    Decode.Value
 
 
 main =
@@ -24,28 +25,35 @@ main =
 
 port askHash : ( String, String ) -> Cmd msg
 
+
 port onHash : (String -> msg) -> Sub msg
 
 
 port askHmac : { message : String, key : String, algorithm : String } -> Cmd msg
 
+
 port onHmac : (String -> msg) -> Sub msg
 
 
-port askHashFileContent : (JsonValue) -> Cmd msg
+port askHashFileContent : JsonValue -> Cmd msg
+
 
 port onHashFileContent : (String -> msg) -> Sub msg
 
 
 port askIsPrime : String -> Cmd msg
 
+
 port onPrimalityResolved : (Bool -> msg) -> Sub msg
+
 
 
 -- STRUCTURE
 
 
-type alias Model = PrimeModel (HashModel (HmacModel (PowModel {})))
+type alias Model =
+    PrimeModel (HashModel (HmacModel (PowModel {})))
+
 
 type alias HashModel r =
     { r
@@ -55,7 +63,11 @@ type alias HashModel r =
         , hashInputType : HashInputType
     }
 
-type HashInputType = TextInput | FileInput
+
+type HashInputType
+    = TextInput
+    | FileInput
+
 
 type alias HmacModel r =
     { r
@@ -72,6 +84,7 @@ type alias PowModel r =
         , powExponent : TriMaybe Integer
         , powModulo : TriMaybe Integer
     }
+
 
 type alias PrimeModel r =
     { r
@@ -106,6 +119,7 @@ type PrimeMsg
     = PrimeInputTyped String
     | PrimalityDecided Bool
 
+
 type Msg
     = HashMsg HashMsg
     | HmacMsg HmacMsg
@@ -135,6 +149,7 @@ init _ =
 
 -- UPDATE
 
+
 updateHashModel : HashMsg -> HashModel r -> ( HashModel r, Cmd Msg )
 updateHashModel message model =
     case message of
@@ -144,16 +159,17 @@ updateHashModel message model =
                     { model | hashAlgorithm = Nothing, computedHash = Nothing } |> withNoCmd
 
                 Just algo ->
-                    ( { model | hashAlgorithm = Just algo, computedHash = Nothing }
-                    , model.hashInput
-                        |> Maybe.map (\input -> askHash ( name, input ))
-                        |> Maybe.withDefault Cmd.none
-                    )
+                    { model | hashAlgorithm = Just algo, computedHash = Nothing }
+                        |> withCmd
+                            (model.hashInput
+                                |> Maybe.map (\input -> askHash ( name, input ))
+                                |> Maybe.withDefault Cmd.none
+                            )
 
         HashInputTyped str ->
             ( { model | hashInput = Just str }
             , model.hashAlgorithm
-                |> Maybe.map (\algo -> askHash ((algorithmName algo), str))
+                |> Maybe.map (\algo -> askHash ( algorithmName algo, str ))
                 |> Maybe.withDefault Cmd.none
             )
 
@@ -171,7 +187,7 @@ updateHashModel message model =
         HashFileContentFound content ->
             ( { model | hashInput = Just content }
             , model.hashAlgorithm
-                |> Maybe.map (\algo -> askHash ((algorithmName algo), content ))
+                |> Maybe.map (\algo -> askHash ( algorithmName algo, content ))
                 |> Maybe.withDefault Cmd.none
             )
 
@@ -212,17 +228,21 @@ updateHmacModel message model =
         HmacComputed str ->
             { model | computedHmac = Just str } |> withNoCmd
 
+
 convertString : String -> TriMaybe Integer
 convertString str =
     if String.isEmpty str then
         Empty
+
     else
         TriMaybe.fromMaybeInvalid (Maths.stringToInteger str)
+
 
 updatePowModel : PowMsg -> PowModel r -> PowModel r
 updatePowModel msg model =
     let
-        convert = convertString
+        convert =
+            convertString
     in
     case msg of
         PowBaseTyped str ->
@@ -239,16 +259,21 @@ updatePrimeModel : PrimeMsg -> PrimeModel r -> ( PrimeModel r, Cmd Msg )
 updatePrimeModel msg model =
     case msg of
         PrimeInputTyped str ->
-            let converted = convertString str
-            in  ( { model | primeInput = converted, primeResult = Nothing }
-                , case converted of
-                    Valid x -> askIsPrime (Maths.integerToString x)
-                    _ -> Cmd.none
-                )
+            let
+                converted =
+                    convertString str
+            in
+            ( { model | primeInput = converted, primeResult = Nothing }
+            , case converted of
+                Valid x ->
+                    askIsPrime (Maths.integerToString x)
+
+                _ ->
+                    Cmd.none
+            )
 
         PrimalityDecided result ->
             { model | primeResult = Just result } |> withNoCmd
-
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -280,6 +305,8 @@ subscriptions _ =
         , onPrimalityResolved (PrimalityDecided >> PrimeMsg)
         ]
 
+
+
 -- VIEWS
 
 
@@ -304,6 +331,7 @@ algorithmPickView switch =
             )
         ]
 
+
 hashView : HashModel r -> Html Msg
 hashView model =
     section []
@@ -312,30 +340,35 @@ hashView model =
         , fieldset []
             [ legend [] [ text "Input type" ]
             , input
-                [  type_ "radio", id "hash-text-option", name "hash-input"
+                [ type_ "radio"
+                , id "hash-text-option"
+                , name "hash-input"
                 , onClick (TextInput |> PickHashInput |> HashMsg)
-                ] []
-            ,
-            label [for "hash-text-option"] [ text "Text" ],
-
-            input
-                [ type_ "radio", id "hash-file-option", name "hash-input"
+                ]
+                []
+            , label [ for "hash-text-option" ] [ text "Text" ]
+            , input
+                [ type_ "radio"
+                , id "hash-file-option"
+                , name "hash-input"
                 , onClick (FileInput |> PickHashInput |> HashMsg)
-                ] [],
-
-            label [for "hash-file-option"] [ text "File" ]
+                ]
+                []
+            , label [ for "hash-file-option" ] [ text "File" ]
             ]
         , case model.hashInputType of
             TextInput ->
                 textarea [ placeholder "Input", onInput (HashInputTyped >> HashMsg) ] []
+
             FileInput ->
                 div []
-                [ input
-                    [ type_ "file"
-                    , on "change" (Decode.map (HashFileSelected >> HashMsg) Decode.value)
-                    ] []
-                , small [] [ text "Note: This implementation loads the entire file into memory" ]
-                ]
+                    [ input
+                        [ type_ "file"
+                        , on "change" (Decode.map (HashFileSelected >> HashMsg) Decode.value)
+                        ]
+                        []
+                    , small [] [ text "Note: This implementation loads the entire file into memory" ]
+                    ]
         , case ( model.hashAlgorithm, model.hashInput, model.computedHash ) of
             ( Just algo, Just input, Just hash ) ->
                 div []
@@ -344,7 +377,8 @@ hashView model =
                     , code [] [ text hash ]
                     ]
 
-            _ -> div [] []
+            _ ->
+                div [] []
         ]
 
 
@@ -408,31 +442,39 @@ powView model =
                 div [] []
         ]
 
+
 primeView : PrimeModel r -> Html Msg
 primeView model =
     section []
         [ h4 [] [ text "Primality Test" ]
-        , small [] [
-            text "Note: This uses ",
-            a [href "https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test"] [ text "Miller Rabin" ],
-            text " so it can't be 100% sure of primality, but it is pretty accurate"
-        ]
+        , small []
+            [ text "Note: This uses "
+            , a [ href "https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test" ] [ text "Miller Rabin" ]
+            , text " so it can't be 100% sure of primality, but it is pretty accurate"
+            ]
         , input
-            ( [ placeholder "p"
-              , onInput (PrimeInputTyped >> PrimeMsg)
-              ]
-            ++ if isInvalid model.primeInput
-                then [attribute "aria-invalid" "true"]
-                else []
-            ) [ ]
+            ([ placeholder "p"
+             , onInput (PrimeInputTyped >> PrimeMsg)
+             ]
+                ++ (if isInvalid model.primeInput then
+                        [ attribute "aria-invalid" "true" ]
+
+                    else
+                        []
+                   )
+            )
+            []
         , case model.primeResult of
             Just prime ->
-                if prime
-                    then div [] [ text "Looks prime to me" ]
-                    else div [] [ text "Not prime." ]
-            Nothing -> div [] []
-        ]
+                if prime then
+                    div [] [ text "Looks prime to me" ]
 
+                else
+                    div [] [ text "Not prime." ]
+
+            Nothing ->
+                div [] []
+        ]
 
 
 view : Model -> Html Msg
@@ -446,5 +488,7 @@ view model =
             , hmacView model
             ]
         ]
+
+
 
 -- decoders

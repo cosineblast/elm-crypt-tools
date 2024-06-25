@@ -14,7 +14,8 @@
         devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.elmPackages.elm
-              pkgs.nodejs
+            pkgs.elmPackages.elm-format
+            pkgs.nodejs
           ];
         };
       };
