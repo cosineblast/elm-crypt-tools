@@ -7,6 +7,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Maths exposing (Integer)
 import TriMaybe exposing (..)
+import Cmd.Extra exposing (withNoCmd, withCmd)
 
 import Json.Decode as Decode
 
@@ -128,7 +129,7 @@ init _ =
     , primeInput = Empty
     , primeResult = Nothing
     }
-        |> pure
+        |> withNoCmd
 
 
 
@@ -140,7 +141,7 @@ updateHashModel message model =
         SwitchHashAlgorithm name ->
             case parseAlgorithm name of
                 Nothing ->
-                    { model | hashAlgorithm = Nothing, computedHash = Nothing } |> pure
+                    { model | hashAlgorithm = Nothing, computedHash = Nothing } |> withNoCmd
 
                 Just algo ->
                     ( { model | hashAlgorithm = Just algo, computedHash = Nothing }
@@ -157,10 +158,10 @@ updateHashModel message model =
             )
 
         HashComputed str ->
-            { model | computedHash = Just str } |> pure
+            { model | computedHash = Just str } |> withNoCmd
 
         PickHashInput type_ ->
-            { model | hashInputType = type_, computedHash = Nothing, hashInput = Nothing } |> pure
+            { model | hashInputType = type_, computedHash = Nothing, hashInput = Nothing } |> withNoCmd
 
         HashFileSelected event ->
             ( { model | hashInputType = FileInput }
@@ -181,7 +182,7 @@ updateHmacModel message model =
         SwitchHmacAlgorithm name ->
             case parseAlgorithm name of
                 Nothing ->
-                    { model | computedHmac = Nothing } |> pure
+                    { model | computedHmac = Nothing } |> withNoCmd
 
                 Just algo ->
                     ( { model | hmacAlgorithm = Just algo, computedHmac = Nothing }
@@ -209,7 +210,7 @@ updateHmacModel message model =
             )
 
         HmacComputed str ->
-            { model | computedHmac = Just str } |> pure
+            { model | computedHmac = Just str } |> withNoCmd
 
 convertString : String -> TriMaybe Integer
 convertString str =
@@ -246,7 +247,7 @@ updatePrimeModel msg model =
                 )
 
         PrimalityDecided result ->
-            { model | primeResult = Just result } |> pure
+            { model | primeResult = Just result } |> withNoCmd
 
 
 
@@ -260,7 +261,7 @@ update msg model =
             updateHmacModel m model
 
         PowMsg m ->
-            updatePowModel m model |> pure
+            updatePowModel m model |> withNoCmd
 
         PrimeMsg m ->
             updatePrimeModel m model
@@ -446,12 +447,4 @@ view model =
             ]
         ]
 
-
-
 -- decoders
--- utility
-
-
-pure : a -> ( a, Cmd msg )
-pure x =
-    ( x, Cmd.none )
