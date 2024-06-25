@@ -433,8 +433,12 @@ powView model =
         , case ( model.powBase, model.powModulo, model.powExponent ) of
             ( Valid base, Valid modulo, Valid exponent ) ->
                 div []
-                    [ "Result: "
-                        ++ Maths.integerToString (Maths.computePow base exponent modulo)
+                    [
+                        "Result: "
+                        ++
+                        (Maths.computePow base exponent modulo
+                         |> Maybe.map Maths.integerToString
+                         |> Maybe.withDefault "idk")
                         |> text
                     ]
 
