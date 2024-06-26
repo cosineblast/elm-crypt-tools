@@ -3,6 +3,7 @@ module Maths exposing (..)
 import BigInt
 import BigInt as B
 import BigInt exposing (BigInt)
+import Maybe exposing (withDefault)
 
 
 type alias Integer =
@@ -23,6 +24,9 @@ zero = B.fromInt 0
 
 one : Integer
 one = B.fromInt 1
+
+two : Integer
+two = B.fromInt 2
 
 -- This BigInt library's modBy operation is more like haskell's `rem`;
 -- It returns negative values, so we use this version of modBy instead.
@@ -60,11 +64,20 @@ modularInverse a modulus =
             else modBy_ modulus result.m
         )
 
-
 modularPow : Integer -> Integer -> Integer -> Maybe Integer
 modularPow x y z =
-    B.pow x y
-    |> modBy_ z
+    if z == zero then Nothing
+    else
+        if y == zero then
+            one |> modBy_ z
+        else
+            let ( d, r ) = B.divmod y two |> withDefault ( zero, zero )
+                next = modularPow x d z |> withDefault zero
+                squared = (B.mul next next) |> modBy_  z |> withDefault zero
+                in if r == zero then
+                    Just squared
+                    else (B.mul squared x) |> modBy_ z
+
 
 computePow : Integer -> Integer -> Integer -> Maybe Integer
 computePow x y z =
